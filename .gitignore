@@ -1,0 +1,78 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Virtual Environments
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# NVIDIA / CUDA / Models
+*.onnx
+*.engine
+*.trt
+models/weights/
+*.bin
+*.safetensors
+
+# ==============================================================================
+# VIDEO IS NEVER COMMITTED. NO EXCEPTIONS.
+# Clips are kept locally and are not distributed with this repository. Do not
+# add a negation (!) here to re-track any of them: an earlier version of this
+# file carried `!data/video_clips/*.mp4`, which force-tracked ~694 MB of video
+# into history and is the reason this repo had to be restarted from a clean
+# tree. If you need to move footage between machines, move it outside Git.
+# ==============================================================================
+*.mp4
+*.avi
+*.mov
+*.mkv
+*.webm
+*.m4v
+*.mpg
+*.mpeg
+*.wmv
+*.flv
+data/video_clips/*
+!data/video_clips/README.md
+data/raw_feeds/
+recordings/
+# Keep the dashboard's clip drop-box in the tree but never its contents.
+# NOTE: do not add a bare `clips/` rule here — git does not descend into an
+# ignored directory, so the .gitkeep negation below would stop working.
+dashboard/clips/*
+!dashboard/clips/.gitkeep
+
+# IDE & OS
+.DS_Store
+.idea/
+.vscode/
+*.swp
+*.swo
+.gemini/
+
+# Telegram credentials (never commit)
+config/telegram.env

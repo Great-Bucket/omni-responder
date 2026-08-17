@@ -1,0 +1,124 @@
+import os
+import json
+from typing import Dict, Any, Optional, Union, Generator
+from src.perception.vss_pipeline import VSSPerceptionPipeline, VisualContextSummary, StreamFrameEvent
+from src.agents.hazmat_agent import HazmatAgent
+from src.agents.traffic_agent import TrafficAgent
+from src.agents.comms_agent import CommsAgent
+from src.notifiers import TelegramNotifier
+from src.config.settings import settings
+
+class IncidentOrchestrator:
+    """Multi-agent incident orchestrator: deterministic rules, lookups and templates.
+
+    No LLM is called here. Perception is the only model-backed step in the
+    pipeline (Cosmos Reasoner 2, see src/perception/vss_pipeline.py); everything
+    below — agent sequencing, escalation and the assembled record — is ordinary
+    Python. A Nemotron NIM was deployed alongside the VLM on the Spark and is
+    still referenced by `settings.orchestrator_llm` and `nim_endpoint_url`, but
+    this class never issues a request to it.
+    """
+
+    def __init__(self, nim_endpoint_url: Optional[str] = None):
+        # Retained so the endpoint is configurable if orchestration is ever
+        # moved onto the LLM. Nothing in this class reads it today.
+        self.nim_endpoint_url = nim_endpoint_url or settings.nim_endpoint_url
+        self.perception = VSSPerceptionPipeline()
+        self.hazmat_agent = HazmatAgent()
+        self.traffic_agent = TrafficAgent()
+        self.comms_agent = CommsAgent()
+        self.telegram = TelegramNotifier()
+
+    def process_incident(self, video_input: Union[str, VisualContextSummary], location_hint: Optional[str] = None, source_video: Optional[str] = None) -> Dict[str, Any]:
+        """Main end-to-end incident dispatch loop."""
+        # 1. Perception Phase (NVIDIA VSS / Cosmos Reasoner VLM)
+        if isinstance(video_input, VisualContextSummary):
+            visual_summary = video_input
+        else:
+            visual_summary = self.perception.process_video_file(video_input, location_hint=location_hint)
+            source_video = source_video or os.path.basename(video_input)
+
+        effective_location = visual_summary.location
+
+        # 2. Hazmat Sub-Agent (Local ERG 2024 Knowledge Base Lookup)
+        hazmat_result = self.hazmat_agent.analyze_hazard(
+            visual_indicators=visual_summary.hazard_indicators,
+            severity=visual_summary.severity
+        )
+
+        # 3. Traffic Sub-Agent (Digital Message Signs & Perimeter Isolation)
+        traffic_result = self.traffic_agent.dispatch_reroute(
+            location=effective_location,
+            isolation_radius_meters=hazmat_result.get("isolation_radius_meters", 0),
+            severity=visual_summary.severity
+        )
+
+        # 4. Comms Sub-Agent (911 CAD Dispatch Briefing Synthesis)
+        dispatch_report = self.comms_agent.generate_dispatch_brief(
+            perception_data=visual_summary.to_dict(),
+            hazmat_data=hazmat_result,
+            traffic_data=traffic_result
+        )
+
+        # 5. Assemble Consolidated Incident Record
+        record = {
+            "incident_id": dispatch_report["cad_id"],
+            "timestamp": dispatch_report["timestamp"],
+            "source_video": source_video,
+            "platform": {
+                "hardware": settings.target_hardware,
+                # Orchestration is rule-based. `settings.orchestrator_llm` names
+                # the NIM that was deployed on the Spark, not a model this
+                # pipeline called — do not report it as the decision-maker.
+                "orchestrator": "deterministic rule engine (no LLM call)",
+                "vision_model": settings.vlm_model,
+                "privacy_guarantee": "100% On-Premise DGX Spark (0% Cloud Video Egress)"
+            },
+            "perception": visual_summary.to_dict(),
+            "hazmat": hazmat_result,
+            "traffic": traffic_result,
+            "dispatch_report": dispatch_report
+        }
+
+        # 6. Telegram Notifier (simulated call to the needed resource)
+        record["telegram_dispatch"] = self.telegram.notify_dispatch(record)
+        return record
+
+    def stream_incident(
+        self,
+        video_path: str,
+        location_hint: Optional[str] = None,
+        speed_multiplier: float = 1.0
+    ) -> Generator[Dict[str, Any], None, None]:
+        """Streams real-time edge monitoring with live wall-clock timestamps and real video duration."""
+        for event in self.perception.stream_video_feed(video_path, location_hint=location_hint, speed_multiplier=speed_multiplier):
+            # ROUTINE_ALL_CLEAR is deliberately NOT in this list. An all-clear is
+            # the pipeline concluding that nothing is happening; running the
+            # dispatch chain on it produced ERG lookups, perimeter locks and
+            # CODE RED briefs for quiet roads. main.py hid that behind a green
+            # banner while the dashboard rendered it in full.
+            if event.status in ["CRISIS_IMPACT", "ROADSIDE_ASSISTANCE"] and event.visual_summary:
+                full_dispatch = self.process_incident(
+                    event.visual_summary,
+                    location_hint=location_hint,
+                    source_video=os.path.basename(video_path)
+                )
+                yield {
+                    "event_type": "DISPATCH_SUMMARY_TRIGGERED",
+                    "timestamp": event.timestamp,
+                    "elapsed_seconds": event.elapsed_seconds,
+                    "status": event.status,
+                    "severity": event.severity,
+                    "scene_description": event.scene_description,
+                    "incident_record": full_dispatch
+                }
+            else:
+                yield {
+                    "event_type": "EDGE_MONITORING_FRAME",
+                    "timestamp": event.timestamp,
+                    "elapsed_seconds": event.elapsed_seconds,
+                    "status": event.status,
+                    "severity": event.severity,
+                    "scene_description": event.scene_description,
+                    "incident_record": None
+                }
