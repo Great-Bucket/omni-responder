@@ -3,6 +3,8 @@
 > **Autonomous, Privacy-First Emergency Dispatch on NVIDIA DGX Spark**  
 > *The "See + Do" Remix: Edge vision perception (NVIDIA Cosmos Reasoner 2) coupled with deterministic, rule-based multi-agent crisis dispatch — all on-device.*
 
+[Project page: reedoco.io/omni-responder](https://www.reedoco.io/omni-responder/)
+
 ---
 
 ## 🌟 Overview
@@ -100,8 +102,8 @@ omni-responder-dgx-spark/
 
 ### 1. Clone & Setup
 ```bash
-git clone https://github.com/Great-Bucket/omni-responder-dgx-spark.git
-cd omni-responder-dgx-spark
+git clone https://github.com/Great-Bucket/omni-responder.git
+cd omni-responder
 
 # Create virtual environment
 python3 -m venv .venv
@@ -183,9 +185,9 @@ From the `video-search-and-summarization` directory on the Spark:
 deploy/docker/scripts/dev-profile.sh up -p base \
   -H DGX-SPARK \
   --llm nvidia/NVIDIA-Nemotron-Nano-9B-v2-FP8 \
-  --llm-env-file ~/omni-responder-dgx-spark/config/nim/custom-llm-nim.env \
+  --llm-env-file ~/omni-responder/config/nim/custom-llm-nim.env \
   --vlm nvidia/cosmos-reason2-8b \
-  --vlm-env-file ~/omni-responder-dgx-spark/config/nim/custom-vlm-nim.env
+  --vlm-env-file ~/omni-responder/config/nim/custom-vlm-nim.env
 ```
 
 ### 2. Active Endpoints on DGX Spark:
@@ -269,4 +271,7 @@ cd dashboard && python server.py --fixture fixtures/tanker_i5.jsonl --loop
 
 ## 🛡️ License
 
-Apache 2.0 License.
+Copyright 2026 Reed O'Beirne, Bilal Khan, and Vishal Shah.
+
+Licensed under the [Apache License, Version 2.0](LICENSE). See [NOTICE](NOTICE)
+for the project attribution notice.

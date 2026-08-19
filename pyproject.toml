@@ -8,6 +8,7 @@ version = "0.1.0"
 description = "Autonomous, privacy-first emergency dispatch system on NVIDIA DGX Spark"
 readme = "README.md"
 requires-python = ">=3.10"
+license = {text = "Apache-2.0"}
 authors = [
     { name = "Vishal Shah" }
 ]
